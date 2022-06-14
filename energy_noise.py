@@ -641,7 +641,7 @@ def Array2List(Arr):
 # In[15]:
 
 
-np.random.seed(2022)
+#np.random.seed(2022)
 Rz_Noise = 2*(np.random.rand(Rz_Number)-0.5)
 
 
