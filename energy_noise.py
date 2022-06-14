@@ -649,10 +649,10 @@ Rz_Noise = 2*(np.random.rand(Rz_Number)-0.5)
 
 
 f = open('plot_data'+Target_state+'.txt', 'w')
-Num = 200
+Num = 400
 
 for i in range(1,Num):
-    eps = 0.2*(i/(Num))
+    eps = 0.1*(i/(Num))
     print(i)
     
     f = open('plot_data'+Target_state+'.txt', 'a')
