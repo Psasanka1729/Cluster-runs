@@ -57,16 +57,10 @@ for line in Lines:
     l.append(line.strip())
 
 gates_list = []
-
-Rz_Number = 0
 for i in range(len(l)):
     
     l_temp = []
     gate_name = l[i].split(',')[0]
-    if gate_name == 'rz':
-        Rz_Number +=1 
-    elif gate_name == 'h':
-        Rz_Number += 1
     gate_angle = l[i].split(',')[1]
     gate_qubit = l[i].split(',')[2]
     
@@ -79,8 +73,6 @@ for i in range(len(l)):
 
 # In[5]:
 
-
-Rz_Number
 
 
 # In[6]:
@@ -139,21 +131,74 @@ def Hadamard(Angle, Qubit):
 # In[7]:
 
 
-def CNOT(t,c):
-    ## Changing the simulator 
-    backend = Aer.get_backend('unitary_simulator')
+'''
+Qiskit uses little endian notation, where the arrangement of the qubits are reversed.
+The Kronecker product for the CNOT gate is modified according to the qiskit notation.
+Counting starts from 0 and goes to N-1.
 
-    ## The circuit without measurement
-    circ = QuantumCircuit(N)
-    circ.cx(t,c)
+'''
+def CNOT(c,t,theta):
+    
+    '''
+    Creating the matrix PI0 (|0><0|) and PI1 (|1><1|).
+    
+    '''
+    I = np.identity(2)
+    Z = np.matrix([[1,0],[0,-1]])
+    X = np.matrix([[0,1],[1,0]])
+    PI_0 = (I+Z)/2
+    PI_1 = (I-Z)/2
+    
+    '''
+    The following function returns the X gate for theta = pi. Any deviation from pi will
+    result in a slightly different gate, which is used to model the noisy X gate.
+    
+    '''
+    def Rx(theta):
+        return np.around((np.cos(theta/2)*I-1j*X*np.sin(theta/2))*(np.cos(theta/2)*I+1j*I*np.sin(theta/2)),12)
+    
+    
+    Matrices = {'I':I,'PI_0':PI_0,'X':Rx(theta), 'PI_1':PI_1}
+    
+    
+    '''
+    
+    We will first create two lists p0 and p1 (for PI0 and PI1) with the matrices
+    of the Kronecker product of PI0 and PI1.
+    
+    '''
+    p0 = ['I']*N
+    p1 = ['I']*N
+    
+    
+    '''
+    The string will be modified according to the position of the target and the control qubits.
+    
+    '''
+        
+    p0[c] = 'PI_0'
+    p1[c] = 'PI_1'
+    p1[t] = 'X'
 
-    ## job execution and getting the result as an object
-    job = execute(circ, backend)
-    result = job.result()
+    
 
-    ## get the unitary matrix from the result object
-    return result.get_unitary(circ) 
+    '''  
+    Initialize the PI0 and PI1 matrices as the first elemenst of the list p0 and p1,
+    then the following loop will perform the Kronecker product.
+    
+    '''    
+    
+    
+    
+    PI_0_matrix = Matrices[p0[0]]
+    for i in range(1,N):
+        PI_0_matrix = sparse.kron(Matrices[p0[i]],PI_0_matrix)
+        
+    PI_1_matrix = Matrices[p1[0]]
+    for i in range(1,N):
+        PI_1_matrix = sparse.kron(Matrices[p1[i]],PI_1_matrix)
 
+    return PI_0_matrix+PI_1_matrix
 
 # In[8]:
 
@@ -194,7 +239,7 @@ def Rz(Angle, Qubit):
 # In[9]:
 
 
-def Grover_reconstructed1(epsilon):
+def Grover_reconstructed(epsilon):
     
 
     #Rz_Noise = 2*(np.random.rand(Rz_Number)-0.5)
@@ -204,34 +249,30 @@ def Grover_reconstructed1(epsilon):
 
     ## In the following loop we multiply all the 1 and 2 qubit gates with (or without) noise.
     
-    j = 0 # Index for the random noise list.
     
     for i in range(len(gates_list)): # l is the list with all the gates.
     
         if gates_list[i][0] == 'rz':
             
-            Rz_s = sparse.csr_matrix(Rz(float(gates_list[i][1])  +
+            Rz_s = Rz(float(gates_list[i][1])  +
 
-                 epsilon * Rz_Noise[j], int(gates_list[i][2])))
+                 epsilon * Rz_Noise[i], int(gates_list[i][2]))
             
             Or = Or*Rz_s
             
-            j = j + 1
         
         
         
         elif gates_list[i][0] == 'h':
             
             
-            Hs = sparse.csr_matrix(Hadamard(np.pi/2+epsilon*Rz_Noise[j], int(gates_list[i][2])))
+            Hs = Hadamard(np.pi/2+epsilon*Rz_Noise[i], int(gates_list[i][2]))
             Or = Or*Hs
-            j = j + 1
             
         
         elif gates_list[i][0] == 'cx':
-        
-            CNOTs = sparse.csr_matrix(CNOT(int(gates_list[i][1]), int(gates_list[i][2])))
-            Or = Or*CNOTs
+
+            Or = Or*CNOT(int(gates_list[i][1]), int(gates_list[i][2]),np.pi+epsilon*Rz_Noise[i])
      
     Or = Or.todense()
     ## In the following we will fix the phase of the reconstructed Oracle.
@@ -417,8 +458,9 @@ def Entropy(Wavefunction):
         M = np.zeros((N,N), dtype = complex) # 0 to N-1.
     
         '''
-            rho is Hermitian, it is sufficient to calculate the elements above the diagonal.
-            The the elements below the diagonal can be replace by the complex cpnjugate of the
+            rho is Hermitian, it is sufficient to calculate the elements
+            above the diagonal. The the elements below the diagonal
+            can be replace by the complex cpnjugate of the
             elements above the diagonal.
         '''
         for i in range(N):
@@ -641,7 +683,7 @@ def Array2List(Arr):
 # In[15]:
 
 
-#np.random.seed(2022)
+np.random.seed(2022)
 Rz_Noise = 2*(np.random.rand(Rz_Number)-0.5)
 
 
@@ -652,8 +694,7 @@ f = open('plot_data'+Target_state+'.txt', 'w')
 Num = 400
 
 for i in range(1,Num):
-    eps = 0.1*(i/(Num))
-    print(i)
+    eps = 0.3*(i/(Num))
     
     f = open('plot_data'+Target_state+'.txt', 'a')
     Op = Grover_reconstructed1(eps)
@@ -663,5 +704,6 @@ for i in range(1,Num):
             
     # file -> epsilon phi_f entropy    
     for j in range(2**N):
-        f.write(X +'\t'+ str(Y[j].real)+ '\t' + str(Average_Entropy(Array2List(V[:,j:j+1]))) +'\n')   
+        f.write(X +'\t'+ str(Y[j].real)+ '\t' + 
+            str(Average_Entropy(Array2List(V[:,j:j+1]))) +'\n')   
 
