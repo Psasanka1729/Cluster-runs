@@ -22,26 +22,22 @@ import scipy.sparse.linalg
 
 Target_state = '000000'
 
-
-# In[3]:
-
-
 N = len(Target_state)
 
 
-## The operator U_s.
+## The operator U_x.
 A = np.ones((2**N, 2**N))
-U_s = (2/(2**N))*A - np.identity(2**N, dtype = complex)
+U_x = (2/(2**N))*A - np.identity(2**N, dtype = complex)
 
 
-## The operator U_w. This is neeed for the sign adjustment of Grover_reconstructed operator.
-U_w = - np.identity(2 ** N, dtype=complex) 
+## The operator U_0. This is neeed for the sign adjustment of Grover_reconstructed operator.
+U_0 = - np.identity(2 ** N, dtype=complex) 
 Target_index = int(Target_state, 2)
-U_w.itemset((Target_index, Target_index),1)
+U_0.itemset((Target_index, Target_index),1)
 
 
 ## G is the Grover operator.
-#G = np.matmul(U_w, U_s)
+G = np.matrix(np.matmul(U_x, U_0)) # U_w = U_x and U_s = U_0.
 
 
 # In[4]:
@@ -242,7 +238,6 @@ def Rz(Angle, Qubit):
 def Grover_reconstructed(epsilon):
     
 
-    #Rz_Noise = 2*(np.random.rand(Rz_Number)-0.5)
     ## Initializing the oracle U_w as an identity matrix.
     
     Or = identity(2**N) 
@@ -281,14 +276,14 @@ def Grover_reconstructed(epsilon):
     Or = Or/Or[0,0]
     
     ## The sign of the reconstructed Oracle should be same as that of original U_w.
-    if np.sign(Or[0,0]) == np.sign(U_w[0,0]):
+    if np.sign(Or[0,0]) == np.sign(U_0[0,0]):
         
         pass # If the sign is same, then pass.
     
     else:
         
         Or = -Or # Otherwise change the sign.
-    Gr = np.matmul(Or, U_s) ## The Grover operator G = U_w * U_s.
+    Gr = np.matmul(U_x,Or) ## The Grover operator G = U_x * U_0.
     
     return Gr
 
@@ -383,10 +378,6 @@ def eigu(U,tol=1e-9):
 
 # In[11]:
 
-
-np.random.seed(2022)
-#Rz_Noise = np.zeros(Rz_Number)
-Rz_Noise = 2*(np.random.rand(Rz_Number)-0.5)
 
 
 # In[ ]:
@@ -683,18 +674,18 @@ def Array2List(Arr):
 # In[15]:
 
 
-np.random.seed(2022)
-Rz_Noise = 2*(np.random.rand(Rz_Number)-0.5)
+#np.random.seed(2022)
+Rz_Noise = 2*(np.random.rand(len(gates_list))-0.5)
 
 
 # In[ ]:
 
 
 f = open('plot_data'+Target_state+'.txt', 'w')
-Num = 400
+Num = 1200
 
 for i in range(1,Num):
-    eps = 0.3*(i/(Num))
+    eps = (i/(Num))
     
     f = open('plot_data'+Target_state+'.txt', 'a')
     Op = Grover_reconstructed1(eps)
