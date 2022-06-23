@@ -688,7 +688,7 @@ for i in range(1,Num):
     eps = (i/(Num))
     
     f = open('plot_data'+Target_state+'.txt', 'a')
-    Op = Grover_reconstructed1(eps)
+    Op = Grover_reconstructed(eps)
     X = str(eps)
     Y = Phi_F(Op)
     V = eigu(Op)[1]
